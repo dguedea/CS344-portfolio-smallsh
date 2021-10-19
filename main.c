@@ -54,9 +54,10 @@ struct input
 /************************************************************************************************
  * INITIALIZING FUNCTIONS USED IN MAIN
  ************************************************************************************************/
-void getInput(char *input);
+void getInput(char *input, int *noParse);
 void printCommand(struct input *aCommand);
 struct input *parseUserInput(char *input);
+void understandCommand(struct input *command);
 
 
 /*************************************************************************************************
@@ -75,6 +76,8 @@ int main() {
     // Initialize Variables
     char *userInput = calloc(MAX_COMMAND, sizeof(char));
     int* smallLoop = 0;
+    int noParse = 0;
+    int *noParsePtr = &noParse;
 
     // Starting program
     printf("$ smallsh\n");
@@ -83,15 +86,15 @@ int main() {
     //while (*smallLoop == 0) {
 
     // Get user input
-    getInput(userInput);
+    getInput(userInput, noParsePtr);
 
-    // Parse user input into input struct
-    parseUserInput(userInput);
+    if (*noParsePtr == 0) {
+        // Parse user input into input struct
+        struct input *command = parseUserInput(userInput);
 
-    // Understand command and redirect
-    
-
-
+        // Understand command and redirect to relevant functions
+        understandCommand(command);
+    };
 
 
 
@@ -113,7 +116,9 @@ int main() {
   * Read user input input usrInput variable
   ************************************************************************************************/
 
-void getInput(char *input) {
+void getInput(char *input, int *noParse) {
+
+    *noParse = 0;
 
     // colon for each new line
     printf(": ");                        
@@ -122,24 +127,19 @@ void getInput(char *input) {
     fflush(stdout);
     fgets(input, MAX_COMMAND, stdin); 
 
-    // remove new line from end of input
-    // must do this or else the strtok_r does not notice the & at end
-    input[strcspn(input, "\n")] = 0;
+    // Return back to loop if comment
+    if(input[0] == '#'){
+        printf("Comment");
+        *noParse = 1;
+        return;
+    }
+    // Return back to loop if new line (just enter from user)
+    else if(strcmp(input, "\n")==0){
+        printf("New Line");
+        *noParse = 1;
+        return;
+    }
 
-    // // Return back to loop if comment
-    // if(input[0] == '#'){
-    //     printf("Comment");
-    //     return;
-    // }
-    // // Return back to loop if new line (just enter from user)
-    // else if(strcmp(input, "\n")==0){
-    //     printf("New Line");
-    //     return;
-    // }
-    // // Parse
-    // else {
-    //     parseUserInput(input);
-    // }
     return;
 
 }
@@ -165,6 +165,10 @@ struct input *parseUserInput(char *input) {
     // struct arguments *tail = NULL;
 
     char *saveptr;
+
+    // remove new line from end of input
+    // must do this or else the strtok_r does not notice the & at end
+    input[strcspn(input, "\n")] = 0;
 
     // Store command since that is always first
     char *token = strtok_r(input, " ", &saveptr);
@@ -196,7 +200,6 @@ struct input *parseUserInput(char *input) {
         }
     }
     fflush(stdout);
-
     printCommand(newCmd);
     return newCmd;
 
@@ -219,3 +222,15 @@ void printCommand(struct input *aCommand)
            aCommand->isBackground);
 }
 
+/******************************************************************************
+ * understandCommand
+ * Descripton: 
+ * ****************************************************************************/
+
+// If # or new line create a global variable that will ignore any parsing and will just go back to user input
+
+void understandCommand(struct input *aCommand)
+{
+    fflush(stdout);
+    printf("To do");
+}

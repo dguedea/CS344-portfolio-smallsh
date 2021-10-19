@@ -283,8 +283,50 @@ void checkExpansion(struct input *aCommand)
     }
 
     // Check input for variable expansion & update with pid
+    if(aCommand->inputFile != NULL) {
+            int endI = strlen(aCommand->inputFile);
+
+    for(int i = 0; i <= endI; ++ i){
+        char *newStr = malloc(length+1+strlen(aCommand->inputFile)-2);
+        if (aCommand->inputFile[i] == '$' &&  aCommand->inputFile[i] == aCommand->inputFile[i+1]) {
+            i = i+1;
+            // Copy up to i to newStr
+            strncpy(newStr, aCommand->inputFile, (i-1));
+            // Add PID string
+            strcat(newStr, strPid);
+            // Copy i to end to newStr
+            strcat(newStr, aCommand->inputFile + i + 1);
+            // Set command to new str
+            strcpy(aCommand->inputFile, newStr);
+            endI = strlen(newStr);
+            free(newStr);
+        }
+        
+    }
+    }
 
     // Check output for variable expansion & update with pid
+        if(aCommand->outputFile != NULL) {
+            int endO = strlen(aCommand->outputFile);
+
+    for(int i = 0; i <= endO; ++ i){
+        char *newStr = malloc(length+1+strlen(aCommand->outputFile)-2);
+        if (aCommand->outputFile[i] == '$' &&  aCommand->outputFile[i] == aCommand->outputFile[i+1]) {
+            i = i+1;
+            // Copy up to i to newStr
+            strncpy(newStr, aCommand->outputFile, (i-1));
+            // Add PID string
+            strcat(newStr, strPid);
+            // Copy i to end to newStr
+            strcat(newStr, aCommand->outputFile + i + 1);
+            // Set command to new str
+            strcpy(aCommand->outputFile, newStr);
+            endO = strlen(newStr);
+            free(newStr);
+        }
+        
+    }
+    }
 
     free(strPid);
 }

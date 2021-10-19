@@ -22,35 +22,36 @@
 
 #define MAX_COMMAND 2048
 #define MAX_ARG 512
+#define _GNU_SOURCE
 
 /************************************************************************************************
  * INITIALIZING GLOBAL VARIABLES
  ************************************************************************************************/
 
-/************************************************************************************************
- * STRUCT FOR USER INPUT
- * Will capture command, a linked list of arguments, the inputFile (if any),
- * the outputFile (if any) and if it should run in the background
- ************************************************************************************************/
+ /************************************************************************************************
+  * STRUCT FOR USER INPUT
+  * Will capture command, a linked list of arguments, the inputFile (if any),
+  * the outputFile (if any) and if it should run in the background
+  ************************************************************************************************/
 
-// Struct to store user input to create the full command
+  // Struct to store user input to create the full command
 struct input
 {
-    char *command;
+    char* command;
     char listArgs[MAX_ARG]; // List of args delimited with ;
-    char *inputFile;
-    char *outputFile;
+    char* inputFile;
+    char* outputFile;
     int isBackground;
 };
 
 /************************************************************************************************
  * INITIALIZING FUNCTIONS USED IN MAIN
  ************************************************************************************************/
-void getInput(char *input, int *noParse);
-void printCommand(struct input *aCommand);
-struct input *parseUserInput(char *input);
-void checkExpansion(struct input *aCommand);
-void chooseCommand(struct input *command, int *exitLoop);
+void getInput(char* input, int* noParse);
+void printCommand(struct input* aCommand);
+struct input* parseUserInput(char* input);
+void checkExpansion(struct input* aCommand);
+void chooseCommand(struct input* command, int* exitLoop);
 
 /*************************************************************************************************
  * MAIN FUNCTION
@@ -60,18 +61,18 @@ void chooseCommand(struct input *command, int *exitLoop);
 *   gcc --std=gnu99 -o smallsh main.c
 *
 *  ./smallsh
-* 
+*
 */
 
 int main()
 {
 
     // Initialize Variables
-    char *userInput = calloc(MAX_COMMAND, sizeof(char));
+    char* userInput = calloc(MAX_COMMAND, sizeof(char));
     int inLoop = 0;
-    int *ptrInLoop = &inLoop;
+    int* ptrInLoop = &inLoop;
     int noParse = 0;
-    int *noParsePtr = &noParse;
+    int* noParsePtr = &noParse;
 
     // Starting program
     printf("$ smallsh\n");
@@ -79,20 +80,20 @@ int main()
     // Start loop that will make up the smallsh getting user input and executing
     while (inLoop == 0) {
 
-    // Get user input
-    getInput(userInput, noParsePtr);
+        // Get user input
+        getInput(userInput, noParsePtr);
 
-    if (*noParsePtr == 0)
-    {
-        // Parse user input into input struct
-        struct input *command = parseUserInput(userInput);
-        // Expand with pid if needed
-        checkExpansion(command);
-        // Understand command and redirect to relevant functions
-        chooseCommand(command, ptrInLoop);
+        if (*noParsePtr == 0)
+        {
+            // Parse user input into input struct
+            struct input* command = parseUserInput(userInput);
+            // Expand with pid if needed
+            checkExpansion(command);
+            // Understand command and redirect to relevant functions
+            chooseCommand(command, ptrInLoop);
 
-        printCommand(command);
-    };
+            printCommand(command);
+        };
 
     }
 
@@ -103,14 +104,14 @@ int main()
  * DEFINING FUNCTIONS USED IN MAIN
  ************************************************************************************************/
 
-/************************************************************************************************
-  * Name: getInput()
-  * Description: 
-  * Print new line to enter user input
-  * Read user input input usrInput variable
-  ************************************************************************************************/
+ /************************************************************************************************
+   * Name: getInput()
+   * Description:
+   * Print new line to enter user input
+   * Read user input input usrInput variable
+   ************************************************************************************************/
 
-void getInput(char *input, int *noParse)
+void getInput(char* input, int* noParse)
 {
 
     *noParse = 0;
@@ -125,14 +126,12 @@ void getInput(char *input, int *noParse)
     // Return back to loop if comment
     if (input[0] == '#')
     {
-        printf("Comment");
         *noParse = 1;
         return;
     }
     // Return back to loop if new line (just enter from user)
     else if (strcmp(input, "\n") == 0)
     {
-        printf("New Line");
         *noParse = 1;
         return;
     }
@@ -143,14 +142,14 @@ void getInput(char *input, int *noParse)
 /************************************************************************************************
  * Name: parseInput()
  * Description:
- * 
+ *
  ************************************************************************************************/
 
-struct input *parseUserInput(char *input)
+struct input* parseUserInput(char* input)
 {
 
     // Initialize the struct with isBackground initialized to false
-    struct input *newCmd = malloc(sizeof(struct input));
+    struct input* newCmd = malloc(sizeof(struct input));
     newCmd->command = NULL;
     newCmd->inputFile = NULL;
     newCmd->outputFile = NULL;
@@ -161,15 +160,14 @@ struct input *parseUserInput(char *input)
     // struct arguments *head = NULL;
     // struct arguments *tail = NULL;
 
-    char *saveptr;
-    int argSpot = 0; // Keeps track of where you are in the arg array
+    char* saveptr;
 
     // remove new line from end of input
     // must do this or else the strtok_r does not notice the & at end
     input[strcspn(input, "\n")] = 0;
 
     // Store command since that is always first
-    char *token = strtok_r(input, " ", &saveptr);
+    char* token = strtok_r(input, " ", &saveptr);
     newCmd->command = calloc(strlen(token) + 1, sizeof(char));
     strcpy(newCmd->command, token);
 
@@ -210,32 +208,32 @@ struct input *parseUserInput(char *input)
 /******************************************************************************
  * printCommand
  * Descripton: Print data from command struct (used in testing file parsing)
- * 
+ *
  * Adapted from students.c from Assignment 1 344
  * CS 344 (Sept. 13, 2020) Citing source code https://replit.com/@cs344/studentsc#student_info1.txt
  * ****************************************************************************/
 
-void printCommand(struct input *aCommand)
+void printCommand(struct input* aCommand)
 {
     printf("Command: %s\n Input: %s\n Output: %s\n Args: %s\n Background: %d\n", aCommand->command,
-           aCommand->inputFile,
-           aCommand->outputFile,
-           aCommand->listArgs,
-           aCommand->isBackground);
+        aCommand->inputFile,
+        aCommand->outputFile,
+        aCommand->listArgs,
+        aCommand->isBackground);
 }
 
 /******************************************************************************
  * checkExpansion()
- * Descripton: 
+ * Descripton:
  * ****************************************************************************/
 
-void checkExpansion(struct input *aCommand)
+void checkExpansion(struct input* aCommand)
 {
     // Get process ID
     int processId = getpid();
     // Convert process ID int to string
     int length = snprintf(NULL, 0, "%d", processId);
-    char *strPid = malloc(length + 1);
+    char* strPid = malloc(length + 1);
     asprintf(&strPid, "%i", processId);
 
     int endCmd = strlen(aCommand->command);
@@ -243,7 +241,7 @@ void checkExpansion(struct input *aCommand)
     // Check command for variable expansion & update with pid
     for (int i = 0; i <= endCmd; ++i)
     {
-        char *newStr = malloc(length + 1 + strlen(aCommand->command) - 2);
+        char* newStr = malloc(length + 1 + strlen(aCommand->command) - 2);
         if (aCommand->command[i] == '$' && aCommand->command[i] == aCommand->command[i + 1])
         {
             i = i + 1;
@@ -266,7 +264,7 @@ void checkExpansion(struct input *aCommand)
 
     for (int i = 0; i <= endArg; ++i)
     {
-        char *newStr = malloc(length + 1 + strlen(aCommand->listArgs) - 2);
+        char* newStr = malloc(length + 1 + strlen(aCommand->listArgs) - 2);
         if (aCommand->listArgs[i] == '$' && aCommand->listArgs[i] == aCommand->listArgs[i + 1])
         {
             i = i + 1;
@@ -290,7 +288,7 @@ void checkExpansion(struct input *aCommand)
 
         for (int i = 0; i <= endI; ++i)
         {
-            char *newStr = malloc(length + 1 + strlen(aCommand->inputFile) - 2);
+            char* newStr = malloc(length + 1 + strlen(aCommand->inputFile) - 2);
             if (aCommand->inputFile[i] == '$' && aCommand->inputFile[i] == aCommand->inputFile[i + 1])
             {
                 i = i + 1;
@@ -315,7 +313,7 @@ void checkExpansion(struct input *aCommand)
 
         for (int i = 0; i <= endO; ++i)
         {
-            char *newStr = malloc(length + 1 + strlen(aCommand->outputFile) - 2);
+            char* newStr = malloc(length + 1 + strlen(aCommand->outputFile) - 2);
             if (aCommand->outputFile[i] == '$' && aCommand->outputFile[i] == aCommand->outputFile[i + 1])
             {
                 i = i + 1;
@@ -338,17 +336,23 @@ void checkExpansion(struct input *aCommand)
 
 /******************************************************************************
  * understandCommand
- * Descripton: 
+ * Descripton:
  * ****************************************************************************/
 
-void chooseCommand(struct input *aCommand, int *exitLoop)
+void chooseCommand(struct input* aCommand, int* exitLoop)
 {
     fflush(stdout);
     // Check if command equals exit, if so exits shell
     if (strcmp(aCommand->command, "exit") == 0)
     {
-        *exitLoop = 1;
         printf("exit!");
+        // CITATION: To easily kill all processes can utilize getppid() and kill()
+        // https://stackoverflow.com/questions/897321/how-can-i-kill-all-processes-of-a-program
+        *exitLoop = 1;
+        pid_t ppid = getppid();
+        kill(ppid, 0);
+        exit(0);
+
     }
 
     // Check if command equals status

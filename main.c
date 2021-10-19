@@ -37,19 +37,11 @@
 struct input
 {
     char *command;
-    // struct arguments *listArgs;
-    char listArgs[MAX_ARG];
+    char listArgs[MAX_ARG]; // List of args delimited with ;
     char *inputFile;
     char *outputFile;
     int isBackground;
 };
-
-// To create a linked list of arguments since there can be multiple
-// struct arguments
-// {
-//     char *arg;
-//     struct arguments *next;
-// };
 
 /************************************************************************************************
  * INITIALIZING FUNCTIONS USED IN MAIN
@@ -58,7 +50,7 @@ void getInput(char *input, int *noParse);
 void printCommand(struct input *aCommand);
 struct input *parseUserInput(char *input);
 void checkExpansion(struct input *aCommand);
-// void understandCommand(struct input *command);
+void chooseCommand(struct input *command, int *exitLoop);
 
 /*************************************************************************************************
  * MAIN FUNCTION
@@ -76,7 +68,8 @@ int main()
 
     // Initialize Variables
     char *userInput = calloc(MAX_COMMAND, sizeof(char));
-    int *smallLoop = 0;
+    int inLoop = 0;
+    int *ptrInLoop = &inLoop;
     int noParse = 0;
     int *noParsePtr = &noParse;
 
@@ -84,7 +77,7 @@ int main()
     printf("$ smallsh\n");
 
     // Start loop that will make up the smallsh getting user input and executing
-    // while (smallLoop == 0) {
+    while (inLoop == 0) {
 
     // Get user input
     getInput(userInput, noParsePtr);
@@ -96,14 +89,12 @@ int main()
         // Expand with pid if needed
         checkExpansion(command);
         // Understand command and redirect to relevant functions
-        // understandCommand(command);
+        chooseCommand(command, ptrInLoop);
 
         printCommand(command);
-
-
     };
 
-    // }
+    }
 
     return 0;
 }
@@ -350,10 +341,31 @@ void checkExpansion(struct input *aCommand)
  * Descripton: 
  * ****************************************************************************/
 
-void understandCommand(struct input *aCommand)
+void chooseCommand(struct input *aCommand, int *exitLoop)
 {
-    // Check for variable expansion
-    // If $$ in command or an arg
     fflush(stdout);
-    printf("To do");
+    // Check if command equals exit, if so exits shell
+    if (strcmp(aCommand->command, "exit") == 0)
+    {
+        *exitLoop = 1;
+        printf("exit!");
+    }
+
+    // Check if command equals status
+    else if (strcmp(aCommand->command, "status") == 0)
+    {
+        printf("status!");
+    }
+
+    // Check if command equals cd
+    else if (strcmp(aCommand->command, "cd") == 0)
+    {
+        printf("cd!");
+    }
+    // If other, redirect to otherCommands()
+    else
+    {
+        printf("other commands");
+    }
+    return;
 }

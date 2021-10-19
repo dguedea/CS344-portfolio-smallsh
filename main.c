@@ -36,16 +36,16 @@
 // Struct to store user input to create the full command
 struct input
 {
-    char* command;
+    char *command;
     // struct arguments *listArgs;
     char listArgs[MAX_ARG];
-    char* inputFile;
-    char* outputFile;
+    char *inputFile;
+    char *outputFile;
     int isBackground;
 };
 
 // To create a linked list of arguments since there can be multiple
-// struct arguments 
+// struct arguments
 // {
 //     char *arg;
 //     struct arguments *next;
@@ -60,7 +60,6 @@ struct input *parseUserInput(char *input);
 void checkExpansion(struct input *aCommand);
 // void understandCommand(struct input *command);
 
-
 /*************************************************************************************************
  * MAIN FUNCTION
 ************************************************************************************************/
@@ -72,11 +71,12 @@ void checkExpansion(struct input *aCommand);
 * 
 */
 
-int main() {
+int main()
+{
 
     // Initialize Variables
     char *userInput = calloc(MAX_COMMAND, sizeof(char));
-    int* smallLoop = 0;
+    int *smallLoop = 0;
     int noParse = 0;
     int *noParsePtr = &noParse;
 
@@ -84,26 +84,26 @@ int main() {
     printf("$ smallsh\n");
 
     // Start loop that will make up the smallsh getting user input and executing
-    //while (*smallLoop == 0) {
+    // while (smallLoop == 0) {
 
     // Get user input
     getInput(userInput, noParsePtr);
 
-    if (*noParsePtr == 0) {
+    if (*noParsePtr == 0)
+    {
         // Parse user input into input struct
         struct input *command = parseUserInput(userInput);
+        // Expand with pid if needed
         checkExpansion(command);
-        printCommand(command);
-
         // Understand command and redirect to relevant functions
         // understandCommand(command);
+
+        printCommand(command);
+
+
     };
 
-
-
-    //}
-
-
+    // }
 
     return 0;
 }
@@ -112,39 +112,41 @@ int main() {
  * DEFINING FUNCTIONS USED IN MAIN
  ************************************************************************************************/
 
- /************************************************************************************************
+/************************************************************************************************
   * Name: getInput()
   * Description: 
   * Print new line to enter user input
   * Read user input input usrInput variable
   ************************************************************************************************/
 
-void getInput(char *input, int *noParse) {
+void getInput(char *input, int *noParse)
+{
 
     *noParse = 0;
 
     // colon for each new line
-    printf(": ");                        
+    printf(": ");
 
     // grab user input and store in usrInput ptr
     fflush(stdout);
-    fgets(input, MAX_COMMAND, stdin); 
+    fgets(input, MAX_COMMAND, stdin);
 
     // Return back to loop if comment
-    if(input[0] == '#'){
+    if (input[0] == '#')
+    {
         printf("Comment");
         *noParse = 1;
         return;
     }
     // Return back to loop if new line (just enter from user)
-    else if(strcmp(input, "\n")==0){
+    else if (strcmp(input, "\n") == 0)
+    {
         printf("New Line");
         *noParse = 1;
         return;
     }
 
     return;
-
 }
 
 /************************************************************************************************
@@ -153,7 +155,8 @@ void getInput(char *input, int *noParse) {
  * 
  ************************************************************************************************/
 
-struct input *parseUserInput(char *input) {
+struct input *parseUserInput(char *input)
+{
 
     // Initialize the struct with isBackground initialized to false
     struct input *newCmd = malloc(sizeof(struct input));
@@ -168,6 +171,7 @@ struct input *parseUserInput(char *input) {
     // struct arguments *tail = NULL;
 
     char *saveptr;
+    int argSpot = 0; // Keeps track of where you are in the arg array
 
     // remove new line from end of input
     // must do this or else the strtok_r does not notice the & at end
@@ -179,25 +183,30 @@ struct input *parseUserInput(char *input) {
     strcpy(newCmd->command, token);
 
     // Loop through rest to assign to struct
-    while((token = strtok_r(NULL, " ", &saveptr))) {
+    while ((token = strtok_r(NULL, " ", &saveptr)))
+    {
         // check if input file
-        if(strcmp(token, "<") == 0) {
+        if (strcmp(token, "<") == 0)
+        {
             token = strtok_r(NULL, " ", &saveptr);
-            newCmd->inputFile = calloc(strlen(token)+1, sizeof(char));
+            newCmd->inputFile = calloc(strlen(token) + 1, sizeof(char));
             strcpy(newCmd->inputFile, token);
         }
         // check if output file
-        else if(strcmp(token, ">") == 0) {
+        else if (strcmp(token, ">") == 0)
+        {
             token = strtok_r(NULL, " ", &saveptr);
-            newCmd->outputFile = calloc(strlen(token)+1, sizeof(char));
+            newCmd->outputFile = calloc(strlen(token) + 1, sizeof(char));
             strcpy(newCmd->outputFile, token);
         }
         // check if background process
-        else if(strcmp(token, "&") == 0) {
+        else if (strcmp(token, "&") == 0)
+        {
             newCmd->isBackground = 1;
         }
         // else add to argument char array with ; in between
-        else {
+        else
+        {
             strcat(newCmd->listArgs, token);
             strcat(newCmd->listArgs, ";");
         }
@@ -205,7 +214,6 @@ struct input *parseUserInput(char *input) {
     fflush(stdout);
     printCommand(newCmd);
     return newCmd;
-
 }
 
 /******************************************************************************
@@ -232,7 +240,7 @@ void printCommand(struct input *aCommand)
 
 void checkExpansion(struct input *aCommand)
 {
-    // Get process ID 
+    // Get process ID
     int processId = getpid();
     // Convert process ID int to string
     int length = snprintf(NULL, 0, "%d", processId);
@@ -242,13 +250,15 @@ void checkExpansion(struct input *aCommand)
     int endCmd = strlen(aCommand->command);
 
     // Check command for variable expansion & update with pid
-    for(int i = 0; i <= endCmd; ++ i){
-        char *newStr = malloc(length+1+strlen(aCommand->command)-2);
-        if (aCommand->command[i] == '$' &&  aCommand->command[i] == aCommand->command[i+1]) {
-            i = i+1;
-            
+    for (int i = 0; i <= endCmd; ++i)
+    {
+        char *newStr = malloc(length + 1 + strlen(aCommand->command) - 2);
+        if (aCommand->command[i] == '$' && aCommand->command[i] == aCommand->command[i + 1])
+        {
+            i = i + 1;
+
             // Copy up to i to newStr
-            strncpy(newStr, aCommand->command, (i-1));
+            strncpy(newStr, aCommand->command, (i - 1));
             // Add PID string
             strcat(newStr, strPid);
             // Copy i to end to newStr
@@ -258,18 +268,19 @@ void checkExpansion(struct input *aCommand)
             endCmd = strlen(newStr);
             free(newStr);
         }
-        
     }
-   
+
     // Check args for variable expansion & update with pid
     int endArg = strlen(aCommand->listArgs);
 
-    for(int i = 0; i <= endArg; ++ i){
-        char *newStr = malloc(length+1+strlen(aCommand->listArgs)-2);
-        if (aCommand->listArgs[i] == '$' &&  aCommand->listArgs[i] == aCommand->listArgs[i+1]) {
-            i = i+1;
+    for (int i = 0; i <= endArg; ++i)
+    {
+        char *newStr = malloc(length + 1 + strlen(aCommand->listArgs) - 2);
+        if (aCommand->listArgs[i] == '$' && aCommand->listArgs[i] == aCommand->listArgs[i + 1])
+        {
+            i = i + 1;
             // Copy up to i to newStr
-            strncpy(newStr, aCommand->listArgs, (i-1));
+            strncpy(newStr, aCommand->listArgs, (i - 1));
             // Add PID string
             strcat(newStr, strPid);
             // Copy i to end to newStr
@@ -279,58 +290,60 @@ void checkExpansion(struct input *aCommand)
             endCmd = strlen(newStr);
             free(newStr);
         }
-        
     }
 
     // Check input for variable expansion & update with pid
-    if(aCommand->inputFile != NULL) {
-            int endI = strlen(aCommand->inputFile);
+    if (aCommand->inputFile != NULL)
+    {
+        int endI = strlen(aCommand->inputFile);
 
-    for(int i = 0; i <= endI; ++ i){
-        char *newStr = malloc(length+1+strlen(aCommand->inputFile)-2);
-        if (aCommand->inputFile[i] == '$' &&  aCommand->inputFile[i] == aCommand->inputFile[i+1]) {
-            i = i+1;
-            // Copy up to i to newStr
-            strncpy(newStr, aCommand->inputFile, (i-1));
-            // Add PID string
-            strcat(newStr, strPid);
-            // Copy i to end to newStr
-            strcat(newStr, aCommand->inputFile + i + 1);
-            // Set command to new str
-            strcpy(aCommand->inputFile, newStr);
-            endI = strlen(newStr);
-            free(newStr);
+        for (int i = 0; i <= endI; ++i)
+        {
+            char *newStr = malloc(length + 1 + strlen(aCommand->inputFile) - 2);
+            if (aCommand->inputFile[i] == '$' && aCommand->inputFile[i] == aCommand->inputFile[i + 1])
+            {
+                i = i + 1;
+                // Copy up to i to newStr
+                strncpy(newStr, aCommand->inputFile, (i - 1));
+                // Add PID string
+                strcat(newStr, strPid);
+                // Copy i to end to newStr
+                strcat(newStr, aCommand->inputFile + i + 1);
+                // Set command to new str
+                strcpy(aCommand->inputFile, newStr);
+                endI = strlen(newStr);
+                free(newStr);
+            }
         }
-        
-    }
     }
 
     // Check output for variable expansion & update with pid
-        if(aCommand->outputFile != NULL) {
-            int endO = strlen(aCommand->outputFile);
+    if (aCommand->outputFile != NULL)
+    {
+        int endO = strlen(aCommand->outputFile);
 
-    for(int i = 0; i <= endO; ++ i){
-        char *newStr = malloc(length+1+strlen(aCommand->outputFile)-2);
-        if (aCommand->outputFile[i] == '$' &&  aCommand->outputFile[i] == aCommand->outputFile[i+1]) {
-            i = i+1;
-            // Copy up to i to newStr
-            strncpy(newStr, aCommand->outputFile, (i-1));
-            // Add PID string
-            strcat(newStr, strPid);
-            // Copy i to end to newStr
-            strcat(newStr, aCommand->outputFile + i + 1);
-            // Set command to new str
-            strcpy(aCommand->outputFile, newStr);
-            endO = strlen(newStr);
-            free(newStr);
+        for (int i = 0; i <= endO; ++i)
+        {
+            char *newStr = malloc(length + 1 + strlen(aCommand->outputFile) - 2);
+            if (aCommand->outputFile[i] == '$' && aCommand->outputFile[i] == aCommand->outputFile[i + 1])
+            {
+                i = i + 1;
+                // Copy up to i to newStr
+                strncpy(newStr, aCommand->outputFile, (i - 1));
+                // Add PID string
+                strcat(newStr, strPid);
+                // Copy i to end to newStr
+                strcat(newStr, aCommand->outputFile + i + 1);
+                // Set command to new str
+                strcpy(aCommand->outputFile, newStr);
+                endO = strlen(newStr);
+                free(newStr);
+            }
         }
-        
-    }
     }
 
     free(strPid);
 }
-
 
 /******************************************************************************
  * understandCommand

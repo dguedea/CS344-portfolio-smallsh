@@ -57,7 +57,8 @@ struct input
 void getInput(char *input, int *noParse);
 void printCommand(struct input *aCommand);
 struct input *parseUserInput(char *input);
-void understandCommand(struct input *command);
+void checkExpansion(struct input *aCommand);
+// void understandCommand(struct input *command);
 
 
 /*************************************************************************************************
@@ -91,9 +92,11 @@ int main() {
     if (*noParsePtr == 0) {
         // Parse user input into input struct
         struct input *command = parseUserInput(userInput);
+        checkExpansion(command);
+        printCommand(command);
 
         // Understand command and redirect to relevant functions
-        understandCommand(command);
+        // understandCommand(command);
     };
 
 
@@ -223,14 +226,79 @@ void printCommand(struct input *aCommand)
 }
 
 /******************************************************************************
+ * checkExpansion()
+ * Descripton: 
+ * ****************************************************************************/
+
+void checkExpansion(struct input *aCommand)
+{
+    // Get process ID 
+    int processId = getpid();
+    // Convert process ID int to string
+    int length = snprintf(NULL, 0, "%d", processId);
+    char *strPid = malloc(length + 1);
+    asprintf(&strPid, "%i", processId);
+
+    int endCmd = strlen(aCommand->command);
+
+    // Check command for variable expansion & update with pid
+    for(int i = 0; i <= endCmd; ++ i){
+        char *newStr = malloc(length+1+strlen(aCommand->command)-2);
+        if (aCommand->command[i] == '$' &&  aCommand->command[i] == aCommand->command[i+1]) {
+            i = i+1;
+            
+            // Copy up to i to newStr
+            strncpy(newStr, aCommand->command, (i-1));
+            // Add PID string
+            strcat(newStr, strPid);
+            // Copy i to end to newStr
+            strcat(newStr, aCommand->command + i + 1);
+            // Set command to new str
+            strcpy(aCommand->command, newStr);
+            endCmd = strlen(newStr);
+            free(newStr);
+        }
+        
+    }
+   
+    // Check args for variable expansion & update with pid
+    int endArg = strlen(aCommand->listArgs);
+
+    for(int i = 0; i <= endArg; ++ i){
+        char *newStr = malloc(length+1+strlen(aCommand->listArgs)-2);
+        if (aCommand->listArgs[i] == '$' &&  aCommand->listArgs[i] == aCommand->listArgs[i+1]) {
+            i = i+1;
+            // Copy up to i to newStr
+            strncpy(newStr, aCommand->listArgs, (i-1));
+            // Add PID string
+            strcat(newStr, strPid);
+            // Copy i to end to newStr
+            strcat(newStr, aCommand->listArgs + i + 1);
+            // Set command to new str
+            strcpy(aCommand->listArgs, newStr);
+            endCmd = strlen(newStr);
+            free(newStr);
+        }
+        
+    }
+
+    // Check input for variable expansion & update with pid
+
+    // Check output for variable expansion & update with pid
+
+    free(strPid);
+}
+
+
+/******************************************************************************
  * understandCommand
  * Descripton: 
  * ****************************************************************************/
 
-// If # or new line create a global variable that will ignore any parsing and will just go back to user input
-
 void understandCommand(struct input *aCommand)
 {
+    // Check for variable expansion
+    // If $$ in command or an arg
     fflush(stdout);
     printf("To do");
 }

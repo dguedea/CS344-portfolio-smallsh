@@ -53,6 +53,7 @@ void printCommand(struct input* aCommand);
 struct input* parseUserInput(char* input);
 void checkExpansion(struct input* aCommand);
 void chooseCommand(struct input* command, int* exitLoop);
+void otherCommands(struct input* command);
 
 /*************************************************************************************************
  * MAIN FUNCTION
@@ -361,7 +362,7 @@ void checkExpansion(struct input* aCommand)
 }
 
 /******************************************************************************
- * understandCommand
+ * chooseCommand
  * Descripton:
  * ****************************************************************************/
 
@@ -441,7 +442,45 @@ void chooseCommand(struct input* aCommand, int* exitLoop)
     // If other, redirect to otherCommands()
     else
     {
-        printf("other commands");
+        otherCommands(aCommand);
     }
     return;
+}
+
+/******************************************************************************
+ * otherCommands
+ * Descripton:
+ * ****************************************************************************/
+
+void otherCommands(struct input* aCommand) {
+    // Create array of arguments to use in execv
+    char* array[aCommand->numArgs + 1];
+
+    array[0] = calloc(strlen(aCommand->command) + 1, sizeof(char));
+    strcpy(array[0], aCommand->command);
+
+    if (aCommand->numArgs != 0) {
+        char* saveP;
+        //int aCtr = 0;
+        char* t = strtok_r(aCommand->listArgs, ";", &saveP);
+        array[1] = calloc(strlen(t) + 1, sizeof(char));
+        strcpy(array[1], t);
+        //aCtr++;
+
+        for (int i = 2; i <= aCommand->numArgs; i++) {
+            t = strtok_r(NULL, ";", &saveP);
+            array[i] = calloc(strlen(t) + 1, sizeof(char));
+            strcpy(array[i], t);
+        }
+    }
+
+    // Add input and output files if any
+    
+
+    array[aCommand->numArgs + 1] = NULL;
+
+    for (int j = 0; j <= (aCommand->numArgs+1); j++) {
+        printf("arg %d %s \n", j, array[j]);
+    }
+
 }

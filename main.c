@@ -27,7 +27,7 @@
 /************************************************************************************************
  * INITIALIZING GLOBAL VARIABLES
  ************************************************************************************************/
-
+int errStatus = 0;
  /************************************************************************************************
   * STRUCT FOR USER INPUT
   * Will capture command, a linked list of arguments, the inputFile (if any),
@@ -42,6 +42,7 @@ struct input
     char* inputFile;
     char* outputFile;
     int isBackground;
+    int numArgs;
 };
 
 /************************************************************************************************
@@ -126,12 +127,14 @@ void getInput(char* input, int* noParse)
     // Return back to loop if comment
     if (input[0] == '#')
     {
+        printf("Comment");
         *noParse = 1;
         return;
     }
     // Return back to loop if new line (just enter from user)
     else if (strcmp(input, "\n") == 0)
     {
+        printf("New Line");
         *noParse = 1;
         return;
     }
@@ -154,6 +157,7 @@ struct input* parseUserInput(char* input)
     newCmd->inputFile = NULL;
     newCmd->outputFile = NULL;
     newCmd->isBackground = 0;
+    newCmd->numArgs = 0;
 
     // Set up linked list for argument
     // struct arguments *newArg = malloc(sizeof(struct arguments));
@@ -198,6 +202,7 @@ struct input* parseUserInput(char* input)
         {
             strcat(newCmd->listArgs, token);
             strcat(newCmd->listArgs, ";");
+            newCmd->numArgs += 1;
         }
     }
     fflush(stdout);
@@ -215,12 +220,33 @@ struct input* parseUserInput(char* input)
 
 void printCommand(struct input* aCommand)
 {
-    printf("Command: %s\n Input: %s\n Output: %s\n Args: %s\n Background: %d\n", aCommand->command,
+    printf("Command: %s\n Input: %s\n Output: %s\n Args: %s\n Background: %d\n Num Args: %d\n", aCommand->command,
         aCommand->inputFile,
         aCommand->outputFile,
         aCommand->listArgs,
-        aCommand->isBackground);
+        aCommand->isBackground,
+        aCommand->numArgs);
 }
+
+/******************************************************************************
+ * convertArgToArray()
+ * Descripton:
+ * ****************************************************************************/
+//char convertArgToArray(struct input* aCommand, char *newArray) {
+  //  char* saveptr;
+    //int ctr = 0;
+//
+  //  char* token = strtok_r(aCommand->listArgs, ";", &saveptr);
+    //strcpy(newArray[0], token);
+    //ctr++;
+//
+//    while ((token = strtok_r(NULL, ";", &saveptr))) {
+//        strcpy(newArray[ctr], token);
+//        ctr++;
+//    }
+//    return newArray;
+//}
+
 
 /******************************************************************************
  * checkExpansion()
@@ -345,26 +371,72 @@ void chooseCommand(struct input* aCommand, int* exitLoop)
     // Check if command equals exit, if so exits shell
     if (strcmp(aCommand->command, "exit") == 0)
     {
-        printf("exit!");
         // CITATION: To easily kill all processes can utilize getppid() and kill()
         // https://stackoverflow.com/questions/897321/how-can-i-kill-all-processes-of-a-program
         *exitLoop = 1;
         pid_t ppid = getppid();
         kill(ppid, 0);
         exit(0);
-
     }
 
     // Check if command equals status
     else if (strcmp(aCommand->command, "status") == 0)
     {
-        printf("status!");
+        printf("Exit Value %d\n", errStatus);
+        fflush(stdout);
     }
 
-    // Check if command equals cd
+    // Check if command equals cd, if so change directory
     else if (strcmp(aCommand->command, "cd") == 0)
     {
-        printf("cd!");
+        // If there are no arguments, go to HOME directory
+        // This will chdir to HOME by using getenv 'HOME'
+        if (aCommand->numArgs == 0) {
+            // For testing
+            //char startCwd[MAX_ARG];
+            //getcwd(startCwd, sizeof(startCwd));
+            //printf("starting path: %s\n", startCwd);
+
+            chdir(getenv("HOME"));
+
+            //char cwd[MAX_ARG];
+            //getcwd(cwd, sizeof(cwd));
+           //printf("new path: %s\n", cwd);
+        }
+        // If there are arguments, it will be a path
+        // Change directory to path specified
+        else {
+            // Get the first argument from listArg which is the path
+            char *firstArg;
+            char* saveptr;
+            char* token = strtok_r(aCommand->listArgs, ";", &saveptr);
+            firstArg = calloc(strlen(token)+1, sizeof(char));
+            strcpy(firstArg, token);
+            //printf("argument: %s\n", firstArg);
+
+            char startCwd[MAX_ARG];
+            getcwd(startCwd, sizeof(startCwd));
+            //printf("starting path: %s\n", startCwd);
+
+            // Create full path by appending current path and arg path
+            // chdir only works with full paths I found out
+            char* fullPath;
+            fullPath = calloc(strlen(firstArg) + 1 + strlen(startCwd), sizeof(char));
+            strcat(fullPath, startCwd);
+            strcat(fullPath, "/");
+            strcat(fullPath, firstArg);
+            
+            // Change directory to path
+            chdir(fullPath);
+
+            //char cwd[MAX_ARG];
+            //getcwd(cwd, sizeof(cwd));
+            //printf("new path: %s\n", cwd);
+
+            free(firstArg);
+            free(fullPath);
+
+        }
     }
     // If other, redirect to otherCommands()
     else

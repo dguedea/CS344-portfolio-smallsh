@@ -27,7 +27,7 @@
 /************************************************************************************************
  * INITIALIZING GLOBAL VARIABLES
  ************************************************************************************************/
-int errStatus;
+int errStatus = 0;
  /************************************************************************************************
   * STRUCT FOR USER INPUT
   * Will capture command, a linked list of arguments, the inputFile (if any),
@@ -54,6 +54,7 @@ struct input* parseUserInput(char* input);
 void checkExpansion(struct input* aCommand);
 void chooseCommand(struct input* command, int* exitLoop);
 void otherCommands(struct input* command);
+void setExitStatus(int status);
 
 /*************************************************************************************************
  * MAIN FUNCTION
@@ -513,7 +514,7 @@ void otherCommands(struct input* aCommand) {
             // If error, print message and set status to 1
             if (outputFD == -1) {
                 perror("error with output file\n");
-                errStatus = 1;
+                exit(1);
             }
             printf("outputFD %d\n", outputFD);
             fflush(stdout);
@@ -522,7 +523,7 @@ void otherCommands(struct input* aCommand) {
             result = dup2(outputFD, 1);
             if (result == -1) {
                 perror("output dup2()");
-                errStatus = 1;
+                exit(1);
             }
         }
         execvp(array[0], array);
@@ -531,11 +532,35 @@ void otherCommands(struct input* aCommand) {
         exit(1); // Exit if there is an error to kill the child 
         break;
     default: // For parent process
+        // Foreground process, utilize waitpid to wait on the child
         spawnPid = waitpid(spawnPid, &childStatus, 0);
+        // Set error status
+        setExitStatus(childStatus);
+
+        // Background process, utilize WNOHANG to let run in background
+
         //printf("Parent %d: child %d terminated, exiting\n", getpid(), spawnPid);
         //fflush(stdout);
-        errStatus = 0;
         break;
+    }
+
+}
+
+/******************************************************************************
+ * setExitStatus
+ * Descripton:
+ * ****************************************************************************/
+
+void setExitStatus(int status) {
+
+    // Adapted from Module 4 Process API Interpreting Signal
+    // Exited normally
+    if (WIFEXITED(status)) {
+        errStatus = WEXITSTATUS(status);
+    }
+    // Exited due to signal
+    else {
+        errStatus = WTERMSIG(status);
     }
 
 }

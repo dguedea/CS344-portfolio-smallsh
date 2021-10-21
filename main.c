@@ -42,19 +42,27 @@ struct input
     char* inputFile;
     char* outputFile;
     int isBackground;
-    int numArgs;
+    int numArgs;            // Counts # of args to create array
+};
+
+// Struct to store pids for exiting and tracking termination
+struct processes
+{
+    int pidArray[100];
+    int numPids;
 };
 
 /************************************************************************************************
  * INITIALIZING FUNCTIONS USED IN MAIN
  ************************************************************************************************/
-void getInput(char* input, int* noParse);
+void getInput(char* input, int* noParse, struct processes *aProcess);
 void printCommand(struct input* aCommand);
 struct input* parseUserInput(char* input);
 void checkExpansion(struct input* aCommand);
-void chooseCommand(struct input* command, int* exitLoop);
-void otherCommands(struct input* command);
+void chooseCommand(struct input* command, int* exitLoop, struct processes* aProcess);
+void otherCommands(struct input* command, struct processes* aProcess);
 void setExitStatus(int status);
+void checkTermination(struct processes* aProcess);
 
 /*************************************************************************************************
  * MAIN FUNCTION
@@ -72,10 +80,16 @@ int main()
 
     // Initialize Variables
     char* userInput = calloc(MAX_COMMAND, sizeof(char));
+    // Tracks if smallsh should keep executing
     int inLoop = 0;
     int* ptrInLoop = &inLoop;
+    // Moves on to parse user input if not # or \n if 0
     int noParse = 0;
     int* noParsePtr = &noParse;
+
+    // Create struct to store PIDs
+    struct processes* pids = malloc(sizeof(struct processes));
+    pids->numPids = 0;
 
     // Starting program
     printf("$ smallsh\n");
@@ -84,7 +98,7 @@ int main()
     while (inLoop == 0) {
 
         // Get user input
-        getInput(userInput, noParsePtr);
+        getInput(userInput, noParsePtr, pids);
 
         if (*noParsePtr == 0)
         {
@@ -93,7 +107,7 @@ int main()
             // Expand with pid if needed
             checkExpansion(command);
             // Understand command and redirect to relevant functions
-            chooseCommand(command, ptrInLoop);
+            chooseCommand(command, ptrInLoop, pids);
 
             //printCommand(command);
         };
@@ -108,18 +122,48 @@ int main()
  ************************************************************************************************/
 
  /************************************************************************************************
+   * Name: checkTermination()
+   * Description:
+   * Print new line to enter user input
+   * Read user input input usrInput variable
+   ************************************************************************************************/
+
+void checkTermination(struct processes* aProcess) {
+
+    int childStatus;
+    pid_t childPid;
+
+    for (int i = 0; i < aProcess->numPids; i++) {
+        childPid = waitpid(aProcess->pidArray[i], &childStatus, WNOHANG);
+        if (childPid != 0) {
+            if (WIFEXITED(childStatus)) {
+                printf("background pid %d is done: terminated by signal %d\n", childPid, WEXITSTATUS(childStatus));
+                fflush(stdout);
+            }
+            else {
+                printf("background pid %d is done: terminated by signal %d\n", childPid, WTERMSIG(childStatus));
+                fflush(stdout);
+            }
+        }
+    }
+}
+
+ /************************************************************************************************
    * Name: getInput()
    * Description:
    * Print new line to enter user input
    * Read user input input usrInput variable
    ************************************************************************************************/
 
-void getInput(char* input, int* noParse)
+void getInput(char* input, int* noParse, struct processes* aProcess)
 {
 
     *noParse = 0;
 
-    // colon for each new line
+    // Check for terminated commands
+    checkTermination(aProcess);
+
+    // Colon for each new line
     printf(": ");
 
     // grab user input and store in usrInput ptr
@@ -347,7 +391,7 @@ void checkExpansion(struct input* aCommand)
  * Descripton:
  * ****************************************************************************/
 
-void chooseCommand(struct input* aCommand, int* exitLoop)
+void chooseCommand(struct input* aCommand, int* exitLoop, struct processes* aProcess)
 {
     fflush(stdout);
     // Check if command equals exit, if so exits shell
@@ -423,7 +467,7 @@ void chooseCommand(struct input* aCommand, int* exitLoop)
     // If other, redirect to otherCommands()
     else
     {
-        otherCommands(aCommand);
+        otherCommands(aCommand, aProcess);
     }
     return;
 }
@@ -433,7 +477,7 @@ void chooseCommand(struct input* aCommand, int* exitLoop)
  * Descripton:
  * ****************************************************************************/
 
-void otherCommands(struct input* aCommand) {
+void otherCommands(struct input* aCommand, struct processes* aProcess) {
     // Create array of arguments to use in execv
     char* array[aCommand->numArgs + 1];
 
@@ -457,12 +501,6 @@ void otherCommands(struct input* aCommand) {
 
     // Add null to end of array
     array[aCommand->numArgs + 1] = NULL;
-
-    // Print for testing purposes
-    //for (int j = 0; j <= (aCommand->numArgs+1); j++) {
-    //    printf("arg %d %s \n", j, array[j]);
-    //    fflush(stdout);
-    //}
 
     // Fork and perform execvp()
     // Using execvp since I created an array & it is using PATH
@@ -488,7 +526,6 @@ void otherCommands(struct input* aCommand) {
             // If error, print message and set status to 1
             if (inputFD == -1) {
                 perror("error opening input file");
-                errStatus = 1;
                 exit(1);
             }
             printf("inputFD %d\n", inputFD);
@@ -500,7 +537,20 @@ void otherCommands(struct input* aCommand) {
                 perror("error");
                 //printf("cannot open %s for input\n", aCommand->inputFile);
                 //fflush(stdout);
-                errStatus = 1;
+                exit(1);
+            }
+        }
+        // If background command and no input file, set to /dev/null
+        else if (aCommand->inputFile == NULL && aCommand->isBackground == 1) {
+            // Set background stdin to /dev/null
+            int backFD = open("/dev/null", O_RDONLY);
+            if (backFD == -1) {
+                perror("error opening /dev/null");
+                exit(1);
+            }
+            result = dup2(backFD, 0);
+            if (result == -1) {
+                perror("error");
                 exit(1);
             }
         }
@@ -510,10 +560,10 @@ void otherCommands(struct input* aCommand) {
 
         if (aCommand->outputFile != NULL) {
             // Open file in write only and truncate if exits, create if not
-            int outputFD = open(aCommand->outputFile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            int outputFD = open(aCommand->outputFile, O_WRONLY | O_CREAT | O_TRUNC);
             // If error, print message and set status to 1
             if (outputFD == -1) {
-                perror("error with output file\n");
+                perror("error with output file");
                 exit(1);
             }
             printf("outputFD %d\n", outputFD);
@@ -526,19 +576,43 @@ void otherCommands(struct input* aCommand) {
                 exit(1);
             }
         }
+
+        // For background process with no stdout set to /dev/null
+        if (aCommand->outputFile == NULL && aCommand->isBackground == 1) {
+            int outFD = open("/dev/null", O_WRONLY | O_TRUNC | O_CREAT);
+            if (outFD == -1) {
+                perror("error opening /dev/null");
+                exit(1);
+            }
+            result = dup2(outFD, 1);
+            if (result == -1) {
+                perror("output dup2()");
+                exit(1);
+            }
+        }
         execvp(array[0], array);
         perror("Error occurred: ");
         errStatus = 1;
         exit(1); // Exit if there is an error to kill the child 
         break;
+
     default: // For parent process
-        // Foreground process, utilize waitpid to wait on the child
-        spawnPid = waitpid(spawnPid, &childStatus, 0);
-        // Set error status
-        setExitStatus(childStatus);
+        // Background process, utilize WNOHANG to free shell
+        if (aCommand->isBackground == 1) {
+            printf("background pid is %d\n", spawnPid);
+            fflush(stdout);
+            // Add pid to array to track termination & kill upon exit
+            aProcess->pidArray[aProcess->numPids] = spawnPid;
+            aProcess->numPids++;
+            spawnPid = waitpid(spawnPid, &childStatus, WNOHANG);
+        }
+        else {
+            // Foreground process, utilize waitpid to wait on the child
+            spawnPid = waitpid(spawnPid, &childStatus, 0);
 
-        // Background process, utilize WNOHANG to let run in background
-
+            // Set error status
+            setExitStatus(childStatus);
+        }
         //printf("Parent %d: child %d terminated, exiting\n", getpid(), spawnPid);
         //fflush(stdout);
         break;

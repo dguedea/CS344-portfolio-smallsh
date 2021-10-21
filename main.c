@@ -94,7 +94,7 @@ int main()
             // Understand command and redirect to relevant functions
             chooseCommand(command, ptrInLoop);
 
-            printCommand(command);
+            //printCommand(command);
         };
 
     }
@@ -204,8 +204,9 @@ struct input* parseUserInput(char* input)
             newCmd->numArgs += 1;
         }
     }
-    fflush(stdout);
+    //fflush(stdout);
     printCommand(newCmd);
+
     return newCmd;
 }
 
@@ -456,9 +457,6 @@ void otherCommands(struct input* aCommand) {
     // Add null to end of array
     array[aCommand->numArgs + 1] = NULL;
 
-    // Add input and output files if any and redirect
-    
-
     // Print for testing purposes
     //for (int j = 0; j <= (aCommand->numArgs+1); j++) {
     //    printf("arg %d %s \n", j, array[j]);
@@ -469,6 +467,7 @@ void otherCommands(struct input* aCommand) {
     // Using execvp since I created an array & it is using PATH
     // Adapted from Module 4: using exec() with fork() example
     int childStatus;
+    int result;
 
     // Fork new process
     pid_t spawnPid = fork();
@@ -479,11 +478,53 @@ void otherCommands(struct input* aCommand) {
         errStatus = 1;
         break;
     case 0: // If success forking
-        //printf("Child %d is running command\n", getpid());
-        //fflush(stdout);
+        // Handle input 
+        // Adapted from Module 5: Redirecting input/output example
+
+        if (aCommand->inputFile != NULL) {
+            // Open file in read only mode
+            int inputFD = open(aCommand->inputFile, O_RDONLY);
+            // If error, print message and set status to 1
+            if (inputFD == -1) {
+                perror("error opening input file\n");
+                errStatus = 1;
+            }
+            printf("inputFD %d\n", inputFD);
+            fflush(stdout);
+
+            // Redirect stdin
+            result = dup2(inputFD, 0);
+            if (result == -1) {
+                perror("source dup2()");
+                errStatus = 1;
+            }
+        }
+
+        // Handle output
+        // Adapted from Module 5: Redirecting input/output example
+
+        if (aCommand->outputFile != NULL) {
+            // Open file in write only and truncate if exits, create if not
+            int outputFD = open(aCommand->outputFile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            // If error, print message and set status to 1
+            if (outputFD == -1) {
+                perror("error with output file\n");
+                errStatus = 1;
+            }
+            printf("outputFD %d\n", outputFD);
+            fflush(stdout);
+
+            // Redirect stdout
+            result = dup2(outputFD, 1);
+            if (result == -1) {
+                perror("output dup2()");
+                errStatus = 1;
+            }
+        }
         execvp(array[0], array);
         perror("Error occurred: ");
         errStatus = 1;
+        exit(1); // Exit if there is an error to kill the child 
         break;
     default: // For parent process
         spawnPid = waitpid(spawnPid, &childStatus, 0);

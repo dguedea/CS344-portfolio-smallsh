@@ -128,14 +128,12 @@ void getInput(char* input, int* noParse)
     // Return back to loop if comment
     if (input[0] == '#')
     {
-        printf("Comment");
         *noParse = 1;
         return;
     }
     // Return back to loop if new line (just enter from user)
     else if (strcmp(input, "\n") == 0)
     {
-        printf("New Line");
         *noParse = 1;
         return;
     }
@@ -228,25 +226,6 @@ void printCommand(struct input* aCommand)
         aCommand->isBackground,
         aCommand->numArgs);
 }
-
-/******************************************************************************
- * convertArgToArray()
- * Descripton:
- * ****************************************************************************/
-//char convertArgToArray(struct input* aCommand, char *newArray) {
-  //  char* saveptr;
-    //int ctr = 0;
-//
-  //  char* token = strtok_r(aCommand->listArgs, ";", &saveptr);
-    //strcpy(newArray[0], token);
-    //ctr++;
-//
-//    while ((token = strtok_r(NULL, ";", &saveptr))) {
-//        strcpy(newArray[ctr], token);
-//        ctr++;
-//    }
-//    return newArray;
-//}
 
 
 /******************************************************************************
@@ -456,16 +435,16 @@ void otherCommands(struct input* aCommand) {
     // Create array of arguments to use in execv
     char* array[aCommand->numArgs + 1];
 
+    // Add command
     array[0] = calloc(strlen(aCommand->command) + 1, sizeof(char));
     strcpy(array[0], aCommand->command);
 
+    // Add any arguments
     if (aCommand->numArgs != 0) {
         char* saveP;
-        //int aCtr = 0;
         char* t = strtok_r(aCommand->listArgs, ";", &saveP);
         array[1] = calloc(strlen(t) + 1, sizeof(char));
         strcpy(array[1], t);
-        //aCtr++;
 
         for (int i = 2; i <= aCommand->numArgs; i++) {
             t = strtok_r(NULL, ";", &saveP);
@@ -474,13 +453,44 @@ void otherCommands(struct input* aCommand) {
         }
     }
 
-    // Add input and output files if any
-    
-
+    // Add null to end of array
     array[aCommand->numArgs + 1] = NULL;
 
-    for (int j = 0; j <= (aCommand->numArgs+1); j++) {
-        printf("arg %d %s \n", j, array[j]);
+    // Add input and output files if any and redirect
+    
+
+    // Print for testing purposes
+    //for (int j = 0; j <= (aCommand->numArgs+1); j++) {
+    //    printf("arg %d %s \n", j, array[j]);
+    //    fflush(stdout);
+    //}
+
+    // Fork and perform execvp()
+    // Using execvp since I created an array & it is using PATH
+    // Adapted from Module 4: using exec() with fork() example
+    int childStatus;
+
+    // Fork new process
+    pid_t spawnPid = fork();
+
+    switch (spawnPid) {
+    case -1: // If error spawning
+        perror("fork()");
+        errStatus = 1;
+        break;
+    case 0: // If success forking
+        //printf("Child %d is running command\n", getpid());
+        //fflush(stdout);
+        execvp(array[0], array);
+        perror("Error occurred: ");
+        errStatus = 1;
+        break;
+    default: // For parent process
+        spawnPid = waitpid(spawnPid, &childStatus, 0);
+        //printf("Parent %d: child %d terminated, exiting\n", getpid(), spawnPid);
+        //fflush(stdout);
+        errStatus = 0;
+        break;
     }
 
 }

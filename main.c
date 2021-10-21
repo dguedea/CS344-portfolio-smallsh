@@ -27,7 +27,7 @@
 /************************************************************************************************
  * INITIALIZING GLOBAL VARIABLES
  ************************************************************************************************/
-int errStatus = 0;
+int errStatus;
  /************************************************************************************************
   * STRUCT FOR USER INPUT
   * Will capture command, a linked list of arguments, the inputFile (if any),
@@ -205,7 +205,7 @@ struct input* parseUserInput(char* input)
         }
     }
     //fflush(stdout);
-    printCommand(newCmd);
+    //printCommand(newCmd);
 
     return newCmd;
 }
@@ -486,8 +486,9 @@ void otherCommands(struct input* aCommand) {
             int inputFD = open(aCommand->inputFile, O_RDONLY);
             // If error, print message and set status to 1
             if (inputFD == -1) {
-                perror("error opening input file\n");
+                perror("error opening input file");
                 errStatus = 1;
+                exit(1);
             }
             printf("inputFD %d\n", inputFD);
             fflush(stdout);
@@ -495,8 +496,11 @@ void otherCommands(struct input* aCommand) {
             // Redirect stdin
             result = dup2(inputFD, 0);
             if (result == -1) {
-                perror("source dup2()");
+                perror("error");
+                //printf("cannot open %s for input\n", aCommand->inputFile);
+                //fflush(stdout);
                 errStatus = 1;
+                exit(1);
             }
         }
 

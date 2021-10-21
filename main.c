@@ -393,22 +393,30 @@ void checkExpansion(struct input* aCommand)
 
 void chooseCommand(struct input* aCommand, int* exitLoop, struct processes* aProcess)
 {
-    fflush(stdout);
     // Check if command equals exit, if so exits shell
     if (strcmp(aCommand->command, "exit") == 0)
     {
-        // CITATION: To easily kill all processes can utilize getppid() and kill()
-        // https://stackoverflow.com/questions/897321/how-can-i-kill-all-processes-of-a-program
+        // Break the shell loop
         *exitLoop = 1;
-        pid_t ppid = getppid();
-        kill(ppid, 0);
+
+        // Loop through pids to kill any that have not terminated
+        int childStatus;
+        pid_t childPid;
+
+        for (int i = 0; i < aProcess->numPids; i++) {
+            childPid = waitpid(aProcess->pidArray[i], &childStatus, WNOHANG);
+            if (childPid == 0) {
+                kill(aProcess->pidArray[i], SIGKILL);
+                }
+            }
         exit(0);
-    }
+        }
+        
 
     // Check if command equals status
     else if (strcmp(aCommand->command, "status") == 0)
     {
-        printf("Exit Value %d\n", errStatus);
+        printf("exit value %d\n", errStatus);
         fflush(stdout);
     }
 

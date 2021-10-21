@@ -28,13 +28,13 @@
  * INITIALIZING GLOBAL VARIABLES
  ************************************************************************************************/
 int errStatus = 0;
- /************************************************************************************************
-  * STRUCT FOR USER INPUT
-  * Will capture command, a linked list of arguments, the inputFile (if any),
-  * the outputFile (if any) and if it should run in the background
-  ************************************************************************************************/
+/************************************************************************************************
+ * STRUCT FOR USER INPUT
+ * Will capture command, a linked list of arguments, the inputFile (if any),
+ * the outputFile (if any) and if it should run in the background
+ ************************************************************************************************/
 
-  // Struct to store user input to create the full command
+ // Struct to store user input to create the full command
 struct input
 {
     char* command;
@@ -55,7 +55,7 @@ struct processes
 /************************************************************************************************
  * INITIALIZING FUNCTIONS USED IN MAIN
  ************************************************************************************************/
-void getInput(char* input, int* noParse, struct processes *aProcess);
+void getInput(char* input, int* noParse, struct processes* aProcess);
 void printCommand(struct input* aCommand);
 struct input* parseUserInput(char* input);
 void checkExpansion(struct input* aCommand);
@@ -148,12 +148,12 @@ void checkTermination(struct processes* aProcess) {
     }
 }
 
- /************************************************************************************************
-   * Name: getInput()
-   * Description:
-   * Print new line to enter user input
-   * Read user input input usrInput variable
-   ************************************************************************************************/
+/************************************************************************************************
+  * Name: getInput()
+  * Description:
+  * Print new line to enter user input
+  * Read user input input usrInput variable
+  ************************************************************************************************/
 
 void getInput(char* input, int* noParse, struct processes* aProcess)
 {
@@ -407,11 +407,11 @@ void chooseCommand(struct input* aCommand, int* exitLoop, struct processes* aPro
             childPid = waitpid(aProcess->pidArray[i], &childStatus, WNOHANG);
             if (childPid == 0) {
                 kill(aProcess->pidArray[i], SIGKILL);
-                }
             }
-        exit(0);
         }
-        
+        exit(0);
+    }
+
 
     // Check if command equals status
     else if (strcmp(aCommand->command, "status") == 0)
@@ -441,10 +441,10 @@ void chooseCommand(struct input* aCommand, int* exitLoop, struct processes* aPro
         // Change directory to path specified
         else {
             // Get the first argument from listArg which is the path
-            char *firstArg;
+            char* firstArg;
             char* saveptr;
             char* token = strtok_r(aCommand->listArgs, ";", &saveptr);
-            firstArg = calloc(strlen(token)+1, sizeof(char));
+            firstArg = calloc(strlen(token) + 1, sizeof(char));
             strcpy(firstArg, token);
             //printf("argument: %s\n", firstArg);
 
@@ -459,7 +459,7 @@ void chooseCommand(struct input* aCommand, int* exitLoop, struct processes* aPro
             strcat(fullPath, startCwd);
             strcat(fullPath, "/");
             strcat(fullPath, firstArg);
-            
+
             // Change directory to path
             chdir(fullPath);
 

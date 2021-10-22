@@ -180,16 +180,21 @@ void checkTermination(struct processes* aProcess) {
 
     for (int i = 0; i < aProcess->numPids; i++) {
         childPid = waitpid(aProcess->pidArray[i], &childStatus, WNOHANG);
-        if (childPid != 0) {
-            if (WIFEXITED(childStatus)) {
-                printf("background pid %d is done: terminated by signal %d\n", childPid, WEXITSTATUS(childStatus));
-                fflush(stdout);
-            }
-            else {
-                printf("background pid %d is done: terminated by signal %d\n", childPid, WTERMSIG(childStatus));
-                fflush(stdout);
+        if (aProcess->pidArray[i] != NULL) {
+            if (childPid != 0) {
+                if (WIFEXITED(childStatus)) {
+                    printf("background pid %d is done: terminated by signal %d\n", aProcess->pidArray[i], WEXITSTATUS(childStatus));
+                    fflush(stdout);
+                    aProcess->pidArray[i] = NULL;
+                }
+                else {
+                    printf("background pid %d is done: terminated by signal %d\n", aProcess->pidArray[i], WTERMSIG(childStatus));
+                    fflush(stdout);
+                    aProcess->pidArray[i] = NULL;
+                }
             }
         }
+
     }
 }
 
@@ -579,8 +584,6 @@ void otherCommands(struct input* aCommand, struct processes* aProcess, struct si
                 perror("error opening input file");
                 exit(1);
             }
-            printf("inputFD %d\n", inputFD);
-            fflush(stdout);
 
             // Redirect stdin
             result = dup2(inputFD, 0);
@@ -611,14 +614,12 @@ void otherCommands(struct input* aCommand, struct processes* aProcess, struct si
 
         if (aCommand->outputFile != NULL) {
             // Open file in write only and truncate if exits, create if not
-            int outputFD = open(aCommand->outputFile, O_WRONLY | O_CREAT | O_TRUNC);
+            int outputFD = open(aCommand->outputFile, O_WRONLY | O_CREAT | O_TRUNC, 0777);
             // If error, print message and set status to 1
             if (outputFD == -1) {
                 perror("error with output file");
                 exit(1);
             }
-            printf("outputFD %d\n", outputFD);
-            fflush(stdout);
 
             // Redirect stdout
             result = dup2(outputFD, 1);

@@ -581,7 +581,9 @@ void otherCommands(struct input* aCommand, struct processes* aProcess, struct si
             int inputFD = open(aCommand->inputFile, O_RDONLY);
             // If error, print message and set status to 1
             if (inputFD == -1) {
-                perror("error opening input file");
+                perror("");
+                printf("cannot open %s for input\n", aCommand->inputFile);
+                fflush(stdout);
                 exit(1);
             }
 
@@ -614,7 +616,7 @@ void otherCommands(struct input* aCommand, struct processes* aProcess, struct si
 
         if (aCommand->outputFile != NULL) {
             // Open file in write only and truncate if exits, create if not
-            int outputFD = open(aCommand->outputFile, O_WRONLY | O_CREAT | O_TRUNC, 0777);
+            int outputFD = open(aCommand->outputFile, O_CREAT | O_WRONLY | O_TRUNC, 0777);
             // If error, print message and set status to 1
             if (outputFD == -1) {
                 perror("error with output file");
@@ -631,7 +633,7 @@ void otherCommands(struct input* aCommand, struct processes* aProcess, struct si
 
         // For background process with no stdout set to /dev/null
         if (aCommand->outputFile == NULL && aCommand->isBackground == 1) {
-            int outFD = open("/dev/null", O_WRONLY | O_TRUNC | O_CREAT);
+            int outFD = open("/dev/null", O_CREAT | O_WRONLY | O_TRUNC);
             if (outFD == -1) {
                 perror("error opening /dev/null");
                 exit(1);

@@ -5,7 +5,7 @@
 * Used to create a small shell in C. It implements a subset of well-known features
 * And execute 3 commands - exit, cd and status as well as others through exec()
 * It supports input and output redirection and running commands in foreground or background
-* Date: 10/19/2021
+* Date: 10/22/2021
 */
 
 #include <stdio.h>
@@ -27,16 +27,17 @@
 
 /************************************************************************************************
  * INITIALIZING GLOBAL VARIABLES
+ * errStatus: used to track error status of processes
+ * backgroundAllowed: tracks if background processes are allowed
  ************************************************************************************************/
-int errStatus = 0;
+int errStatus = 0;  
 int backgroundAllowed = 0;   // 0 is allowed, 1 is not allowed
+
 /************************************************************************************************
  * STRUCT FOR USER INPUT
- * Will capture command, a linked list of arguments, the inputFile (if any),
- * the outputFile (if any) and if it should run in the background
+ * Will capture command, a string of arguments, the inputFile (if any),
+ * the outputFile (if any) and if the process should run in the background
  ************************************************************************************************/
-
- // Struct to store user input to create the full command
 struct input
 {
     char* command;
@@ -46,8 +47,10 @@ struct input
     int isBackground;       // 0 foreground 1 background
     int numArgs;            // Counts # of args to create array
 };
-
-// Struct to store pids for exiting and tracking termination
+/************************************************************************************************
+ * STRUCT TO STORE RUNNING PIDS
+ * Stores background pids in order to track termination and display message when terminated
+ ************************************************************************************************/
 struct processes
 {
     int pidArray[100];
@@ -65,7 +68,6 @@ void chooseCommand(struct input* command, int* exitLoop, struct processes* aProc
 void otherCommands(struct input* command, struct processes* aProcess, struct sigaction SIGINT_action);
 void setExitStatus(int status);
 void checkTermination(struct processes* aProcess);
-
 void handle_SIGTSTP(int signo);
 
 /*************************************************************************************************
@@ -82,12 +84,15 @@ void handle_SIGTSTP(int signo);
 int main()
 {
 
-    // Initialize Variables
+    // Initialize user input variable
     char* userInput = calloc(MAX_COMMAND, sizeof(char));
+
     // Tracks if smallsh should keep executing
     int inLoop = 0;
     int* ptrInLoop = &inLoop;
-    // Moves on to parse user input if not # or \n if 0
+
+    // Moves on to parse user input into struct
+    // If 0 parses user input, if 1 does not parse (due to \n or #)
     int noParse = 0;
     int* noParsePtr = &noParse;
 
@@ -115,7 +120,7 @@ int main()
     // Starting program
     printf("$ smallsh\n");
 
-    // Start loop that will make up the smallsh getting user input and executing
+    // Loop that will make up the smallsh getting user input and executing until inLoop != 0
     while (inLoop == 0) {
 
         // Get user input
@@ -125,16 +130,20 @@ int main()
         {
             // Parse user input into input struct
             struct input* command = parseUserInput(userInput);
-            // Expand with pid if needed
+
+            // Expand command with currrent pid if needed
             checkExpansion(command);
+
             // Understand command and redirect to relevant functions
             chooseCommand(command, ptrInLoop, pids, SIGINT_action);
 
-            //printCommand(command);
         };
 
     }
 
+    free(userInput);
+    free(ptrInLoop);
+    free(noParsePtr);
     return 0;
 }
 
@@ -144,9 +153,11 @@ int main()
 
  /************************************************************************************************
    * Name: handle_SIGTSTP()
-   * Description:
-   * Print new line to enter user input
-   * Read user input input usrInput variable
+   * Description: Function to handle Cntrl Z / SIGTSTP signal
+   * Will toggle back and forth between foreground only mode and exiting foreground only mode
+   * Changes: backgroundAllowed global variable
+   * 0 = background processes allowed
+   * 1 = foreground only mode
    ************************************************************************************************/
 
 void handle_SIGTSTP(int signo) {
@@ -168,9 +179,10 @@ void handle_SIGTSTP(int signo) {
 
  /************************************************************************************************
    * Name: checkTermination()
-   * Description:
-   * Print new line to enter user input
-   * Read user input input usrInput variable
+   * Description: Loops through list of child pids and checks if they terminated
+   * Will print message with termination signal # if terminated & removes pid from list
+   * Takes: processes struct
+   * Updates: processes struct
    ************************************************************************************************/
 
 void checkTermination(struct processes* aProcess) {
@@ -182,11 +194,13 @@ void checkTermination(struct processes* aProcess) {
         childPid = waitpid(aProcess->pidArray[i], &childStatus, WNOHANG);
         if (aProcess->pidArray[i] != NULL) {
             if (childPid != 0) {
+                // If exited normally
                 if (WIFEXITED(childStatus)) {
                     printf("background pid %d is done: terminated by signal %d\n", aProcess->pidArray[i], WEXITSTATUS(childStatus));
                     fflush(stdout);
                     aProcess->pidArray[i] = NULL;
                 }
+                // If not exited normally
                 else {
                     printf("background pid %d is done: terminated by signal %d\n", aProcess->pidArray[i], WTERMSIG(childStatus));
                     fflush(stdout);
@@ -200,9 +214,11 @@ void checkTermination(struct processes* aProcess) {
 
 /************************************************************************************************
   * Name: getInput()
-  * Description:
-  * Print new line to enter user input
-  * Read user input input usrInput variable
+  * Description: Receives user input from shell and stores in userInput variable
+  * If user input is \n or starts with # will ignore and prompt again for input
+  * Takes: userInput variable, noParse variable, and processes structure
+  * Updates: userInput
+  * Calls: checkTermination before prompting for input to check for terminated processes
   ************************************************************************************************/
 
 void getInput(char* input, int* noParse, struct processes* aProcess)
@@ -238,8 +254,10 @@ void getInput(char* input, int* noParse, struct processes* aProcess)
 
 /************************************************************************************************
  * Name: parseInput()
- * Description:
- *
+ * Description: Parses user input and stores in input struct
+ * Takes: userInput
+ * Returns: Struct that separates user input into command, inputFile, outputFile, args &
+ * if background or not
  ************************************************************************************************/
 
 struct input* parseUserInput(char* input)
@@ -252,11 +270,6 @@ struct input* parseUserInput(char* input)
     newCmd->outputFile = NULL;
     newCmd->isBackground = 0;
     newCmd->numArgs = 0;
-
-    // Set up linked list for argument
-    // struct arguments *newArg = malloc(sizeof(struct arguments));
-    // struct arguments *head = NULL;
-    // struct arguments *tail = NULL;
 
     char* saveptr;
 
@@ -291,7 +304,7 @@ struct input* parseUserInput(char* input)
         {
             newCmd->isBackground = 1;
         }
-        // else add to argument char array with ; in between
+        // else add to argument char array delimited with ;
         else
         {
             strcat(newCmd->listArgs, token);
@@ -299,8 +312,6 @@ struct input* parseUserInput(char* input)
             newCmd->numArgs += 1;
         }
     }
-    //fflush(stdout);
-    //printCommand(newCmd);
 
     return newCmd;
 }
@@ -326,13 +337,17 @@ void printCommand(struct input* aCommand)
 
 /******************************************************************************
  * checkExpansion()
- * Descripton:
+ * Descripton: Expands all instances of $$ with the current pid
+ * Stores new expansion in the input struct
+ * Takes: input struct
+ * Updates: input struct where $$ is found
  * ****************************************************************************/
 
 void checkExpansion(struct input* aCommand)
 {
     // Get process ID
     int processId = getpid();
+
     // Convert process ID int to string
     int length = snprintf(NULL, 0, "%d", processId);
     char* strPid = malloc(length + 1);
@@ -350,10 +365,13 @@ void checkExpansion(struct input* aCommand)
 
             // Copy up to i to newStr
             strncpy(newStr, aCommand->command, (i - 1));
+
             // Add PID string
             strcat(newStr, strPid);
+
             // Copy i to end to newStr
             strcat(newStr, aCommand->command + i + 1);
+
             // Set command to new str
             strcpy(aCommand->command, newStr);
             endCmd = strlen(newStr);
@@ -372,10 +390,13 @@ void checkExpansion(struct input* aCommand)
             i = i + 1;
             // Copy up to i to newStr
             strncpy(newStr, aCommand->listArgs, (i - 1));
+
             // Add PID string
             strcat(newStr, strPid);
+
             // Copy i to end to newStr
             strcat(newStr, aCommand->listArgs + i + 1);
+
             // Set command to new str
             strcpy(aCommand->listArgs, newStr);
             endCmd = strlen(newStr);
@@ -396,10 +417,13 @@ void checkExpansion(struct input* aCommand)
                 i = i + 1;
                 // Copy up to i to newStr
                 strncpy(newStr, aCommand->inputFile, (i - 1));
+
                 // Add PID string
                 strcat(newStr, strPid);
+
                 // Copy i to end to newStr
                 strcat(newStr, aCommand->inputFile + i + 1);
+
                 // Set command to new str
                 strcpy(aCommand->inputFile, newStr);
                 endI = strlen(newStr);
@@ -421,10 +445,13 @@ void checkExpansion(struct input* aCommand)
                 i = i + 1;
                 // Copy up to i to newStr
                 strncpy(newStr, aCommand->outputFile, (i - 1));
+
                 // Add PID string
                 strcat(newStr, strPid);
+
                 // Copy i to end to newStr
                 strcat(newStr, aCommand->outputFile + i + 1);
+
                 // Set command to new str
                 strcpy(aCommand->outputFile, newStr);
                 endO = strlen(newStr);
@@ -438,7 +465,10 @@ void checkExpansion(struct input* aCommand)
 
 /******************************************************************************
  * chooseCommand
- * Descripton:
+ * Descripton: Based on input struct command, performs built in commands or
+ * calls otherCommands() 
+ * Takes: input struct, processes struct, sigaction struct, exitLoop variable
+ * Updates: exitLoop if command = 'exit'
  * ****************************************************************************/
 
 void chooseCommand(struct input* aCommand, int* exitLoop, struct processes* aProcess, struct sigaction SIGINT_action)
@@ -463,7 +493,7 @@ void chooseCommand(struct input* aCommand, int* exitLoop, struct processes* aPro
     }
 
 
-    // Check if command equals status
+    // Check if command equals status & print current errStatus
     else if (strcmp(aCommand->command, "status") == 0)
     {
         printf("exit value %d\n", errStatus);
@@ -519,14 +549,19 @@ void chooseCommand(struct input* aCommand, int* exitLoop, struct processes* aPro
 
 /******************************************************************************
  * otherCommands
- * Descripton:
+ * Descripton: Used to execute other commands by forking a child and calling
+ * execvp()
+ * If Cntrl C signaled, will terminate fg child process
+ * Takes: input struct, processes struct, sigaction struct
+ * Updates: processes struct
  * ****************************************************************************/
 
 void otherCommands(struct input* aCommand, struct processes* aProcess, struct sigaction SIGINT_action) {
+
     // Create array of arguments to use in execv
     char* array[aCommand->numArgs + 1];
 
-    // Add command
+    // Add command as first element of array
     array[0] = calloc(strlen(aCommand->command) + 1, sizeof(char));
     strcpy(array[0], aCommand->command);
 
@@ -579,6 +614,7 @@ void otherCommands(struct input* aCommand, struct processes* aProcess, struct si
         if (aCommand->inputFile != NULL) {
             // Open file in read only mode
             int inputFD = open(aCommand->inputFile, O_RDONLY);
+
             // If error, print message and set status to 1
             if (inputFD == -1) {
                 perror("");
@@ -591,13 +627,12 @@ void otherCommands(struct input* aCommand, struct processes* aProcess, struct si
             result = dup2(inputFD, 0);
             if (result == -1) {
                 perror("error");
-                //printf("cannot open %s for input\n", aCommand->inputFile);
-                //fflush(stdout);
                 exit(1);
             }
         }
         // If background command and no input file, set to /dev/null
         else if (aCommand->inputFile == NULL && aCommand->isBackground == 1) {
+
             // Set background stdin to /dev/null
             int backFD = open("/dev/null", O_RDONLY);
             if (backFD == -1) {
@@ -613,10 +648,10 @@ void otherCommands(struct input* aCommand, struct processes* aProcess, struct si
 
         // Handle output
         // Adapted from Module 5: Redirecting input/output example
-
         if (aCommand->outputFile != NULL) {
             // Open file in write only and truncate if exits, create if not
             int outputFD = open(aCommand->outputFile, O_CREAT | O_WRONLY | O_TRUNC, 0777);
+
             // If error, print message and set status to 1
             if (outputFD == -1) {
                 perror("error with output file");
@@ -655,26 +690,27 @@ void otherCommands(struct input* aCommand, struct processes* aProcess, struct si
         if (aCommand->isBackground == 1) {
             printf("background pid is %d\n", spawnPid);
             fflush(stdout);
+
             // Add pid to array to track termination & kill upon exit
             aProcess->pidArray[aProcess->numPids] = spawnPid;
             aProcess->numPids++;
             spawnPid = waitpid(spawnPid, &childStatus, WNOHANG);
         }
+
+        // Foreground process, utilize waitpid to wait on the child
         else {
-            // Foreground process, utilize waitpid to wait on the child
             spawnPid = waitpid(spawnPid, &childStatus, 0);
 
             // Set error status
             setExitStatus(childStatus);
 
-            // Since SIGINT exit is always 2, only print on Cntrl C exit
+            // Since SIGINT exit is # 2, only print notice on Cntrl C exit
             if (errStatus == 2) {
                 printf("terminated with signal %d\n", errStatus);
+                fflush(stdout);
             }
             
         }
-        //printf("Parent %d: child %d terminated, exiting\n", getpid(), spawnPid);
-        //fflush(stdout);
         break;
     }
 
@@ -682,7 +718,9 @@ void otherCommands(struct input* aCommand, struct processes* aProcess, struct si
 
 /******************************************************************************
  * setExitStatus
- * Descripton:
+ * Descripton: Sets errStatus global variable based on status #
+ * Takes: errStatus global variable
+ * Updates: errStatus based on WEXITSTATUS / WTERMSIG
  * ****************************************************************************/
 
 void setExitStatus(int status) {

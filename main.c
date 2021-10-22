@@ -29,6 +29,7 @@
  * INITIALIZING GLOBAL VARIABLES
  ************************************************************************************************/
 int errStatus = 0;
+int backgroundAllowed = 0;   // 0 is allowed, 1 is not allowed
 /************************************************************************************************
  * STRUCT FOR USER INPUT
  * Will capture command, a linked list of arguments, the inputFile (if any),
@@ -65,6 +66,8 @@ void otherCommands(struct input* command, struct processes* aProcess, struct sig
 void setExitStatus(int status);
 void checkTermination(struct processes* aProcess);
 
+void handle_SIGTSTP(int signo);
+
 /*************************************************************************************************
  * MAIN FUNCTION
 ************************************************************************************************/
@@ -100,6 +103,15 @@ int main()
     SIGINT_action.sa_flags = 0;
     sigaction(SIGINT, &SIGINT_action, NULL);
 
+    // Set up handing SIGTSTP parent and children ignore
+    // Toggles to allow or disallow background processes
+    // Adpated from Module 5: Custom Handlers for SIGINT, SIGUSR2, and SIGTERM
+    struct sigaction SIGTSTP_action = { 0 };
+    SIGTSTP_action.sa_handler = handle_SIGTSTP;  // Calls function that will toggle the background override
+    sigfillset(&SIGTSTP_action.sa_mask);
+    SIGTSTP_action.sa_flags = SA_RESTART;        // Using restart because it will restart system call (MOD 5)
+    sigaction(SIGTSTP, &SIGTSTP_action, NULL);
+
     // Starting program
     printf("$ smallsh\n");
 
@@ -129,6 +141,30 @@ int main()
 /************************************************************************************************
  * DEFINING FUNCTIONS USED IN MAIN
  ************************************************************************************************/
+
+ /************************************************************************************************
+   * Name: handle_SIGTSTP()
+   * Description:
+   * Print new line to enter user input
+   * Read user input input usrInput variable
+   ************************************************************************************************/
+
+void handle_SIGTSTP(int signo) {
+    if (backgroundAllowed == 0) {
+        backgroundAllowed = 1;
+        char* message = "\nEntering foreground only mode (& is now ignored)\n: ";
+        write(1, message, 52);
+        fflush(stdout);
+    }
+    else if (backgroundAllowed == 1) {
+        backgroundAllowed = 0;
+        char* message = "\nExiting foreground only mode\n: ";
+        write(1, message, 32);
+        fflush(stdout);
+
+    }
+
+}
 
  /************************************************************************************************
    * Name: checkTermination()
@@ -635,7 +671,12 @@ void otherCommands(struct input* aCommand, struct processes* aProcess, struct si
 
             // Set error status
             setExitStatus(childStatus);
-            printf("terminated with signal %d", errStatus);
+
+            // Since SIGINT exit is always 2, only print on Cntrl C exit
+            if (errStatus == 2) {
+                printf("terminated with signal %d\n", errStatus);
+            }
+            
         }
         //printf("Parent %d: child %d terminated, exiting\n", getpid(), spawnPid);
         //fflush(stdout);

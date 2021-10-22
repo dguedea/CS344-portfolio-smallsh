@@ -19,6 +19,7 @@
 #include <time.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <signal.h>
 
 #define MAX_COMMAND 2048
 #define MAX_ARG 512
@@ -59,8 +60,8 @@ void getInput(char* input, int* noParse, struct processes* aProcess);
 void printCommand(struct input* aCommand);
 struct input* parseUserInput(char* input);
 void checkExpansion(struct input* aCommand);
-void chooseCommand(struct input* command, int* exitLoop, struct processes* aProcess);
-void otherCommands(struct input* command, struct processes* aProcess);
+void chooseCommand(struct input* command, int* exitLoop, struct processes* aProcess, struct sigaction SIGINT_action);
+void otherCommands(struct input* command, struct processes* aProcess, struct sigaction SIGINT_action);
 void setExitStatus(int status);
 void checkTermination(struct processes* aProcess);
 
@@ -91,6 +92,14 @@ int main()
     struct processes* pids = malloc(sizeof(struct processes));
     pids->numPids = 0;
 
+    // Set up handling SIGINT parent to ignore
+    // Adpated from Module 5: Custom Handlers for SIGINT, SIGUSR2 and SIGTERM
+    struct sigaction SIGINT_action = { 0 };
+    SIGINT_action.sa_handler = SIG_IGN;  //Since we want the parent to ignore Cntrl C
+    sigfillset(&SIGINT_action.sa_mask);  //Will not interrupt
+    SIGINT_action.sa_flags = 0;
+    sigaction(SIGINT, &SIGINT_action, NULL);
+
     // Starting program
     printf("$ smallsh\n");
 
@@ -107,7 +116,7 @@ int main()
             // Expand with pid if needed
             checkExpansion(command);
             // Understand command and redirect to relevant functions
-            chooseCommand(command, ptrInLoop, pids);
+            chooseCommand(command, ptrInLoop, pids, SIGINT_action);
 
             //printCommand(command);
         };
@@ -391,7 +400,7 @@ void checkExpansion(struct input* aCommand)
  * Descripton:
  * ****************************************************************************/
 
-void chooseCommand(struct input* aCommand, int* exitLoop, struct processes* aProcess)
+void chooseCommand(struct input* aCommand, int* exitLoop, struct processes* aProcess, struct sigaction SIGINT_action)
 {
     // Check if command equals exit, if so exits shell
     if (strcmp(aCommand->command, "exit") == 0)
@@ -475,7 +484,7 @@ void chooseCommand(struct input* aCommand, int* exitLoop, struct processes* aPro
     // If other, redirect to otherCommands()
     else
     {
-        otherCommands(aCommand, aProcess);
+        otherCommands(aCommand, aProcess, SIGINT_action);
     }
     return;
 }
@@ -485,7 +494,7 @@ void chooseCommand(struct input* aCommand, int* exitLoop, struct processes* aPro
  * Descripton:
  * ****************************************************************************/
 
-void otherCommands(struct input* aCommand, struct processes* aProcess) {
+void otherCommands(struct input* aCommand, struct processes* aProcess, struct sigaction SIGINT_action) {
     // Create array of arguments to use in execv
     char* array[aCommand->numArgs + 1];
 
@@ -527,6 +536,12 @@ void otherCommands(struct input* aCommand, struct processes* aProcess) {
     case 0: // If success forking
         // Handle input 
         // Adapted from Module 5: Redirecting input/output example
+
+        // Child in foreground must terminate with SIGINT (Cntrl C)
+        if (aCommand->isBackground == 0) {
+            SIGINT_action.sa_handler = SIG_DFL; // Will set to default behavior
+            sigaction(SIGINT, &SIGINT_action, NULL);
+        }
 
         if (aCommand->inputFile != NULL) {
             // Open file in read only mode
@@ -620,6 +635,7 @@ void otherCommands(struct input* aCommand, struct processes* aProcess) {
 
             // Set error status
             setExitStatus(childStatus);
+            printf("terminated with signal %d", errStatus);
         }
         //printf("Parent %d: child %d terminated, exiting\n", getpid(), spawnPid);
         //fflush(stdout);

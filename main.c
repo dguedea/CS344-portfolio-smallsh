@@ -43,7 +43,7 @@ struct input
     char listArgs[MAX_ARG]; // List of args delimited with ;
     char* inputFile;
     char* outputFile;
-    int isBackground;
+    int isBackground;       // 0 foreground 1 background
     int numArgs;            // Counts # of args to create array
 };
 
@@ -109,7 +109,7 @@ int main()
     struct sigaction SIGTSTP_action = { 0 };
     SIGTSTP_action.sa_handler = handle_SIGTSTP;  // Calls function that will toggle the background override
     sigfillset(&SIGTSTP_action.sa_mask);
-    SIGTSTP_action.sa_flags = SA_RESTART;        // Using restart because it will restart system call (MOD 5)
+    SIGTSTP_action.sa_flags = SA_RESTART;        // Using restart so it does not re-execute previous call (MOD 5)
     sigaction(SIGTSTP, &SIGTSTP_action, NULL);
 
     // Starting program
@@ -471,31 +471,22 @@ void chooseCommand(struct input* aCommand, int* exitLoop, struct processes* aPro
         // If there are no arguments, go to HOME directory
         // This will chdir to HOME by using getenv 'HOME'
         if (aCommand->numArgs == 0) {
-            // For testing
-            //char startCwd[MAX_ARG];
-            //getcwd(startCwd, sizeof(startCwd));
-            //printf("starting path: %s\n", startCwd);
-
             chdir(getenv("HOME"));
-
-            //char cwd[MAX_ARG];
-            //getcwd(cwd, sizeof(cwd));
-           //printf("new path: %s\n", cwd);
         }
+
         // If there are arguments, it will be a path
         // Change directory to path specified
         else {
+
             // Get the first argument from listArg which is the path
             char* firstArg;
             char* saveptr;
             char* token = strtok_r(aCommand->listArgs, ";", &saveptr);
             firstArg = calloc(strlen(token) + 1, sizeof(char));
             strcpy(firstArg, token);
-            //printf("argument: %s\n", firstArg);
 
             char startCwd[MAX_ARG];
             getcwd(startCwd, sizeof(startCwd));
-            //printf("starting path: %s\n", startCwd);
 
             // Create full path by appending current path and arg path
             // chdir only works with full paths I found out
@@ -507,10 +498,6 @@ void chooseCommand(struct input* aCommand, int* exitLoop, struct processes* aPro
 
             // Change directory to path
             chdir(fullPath);
-
-            //char cwd[MAX_ARG];
-            //getcwd(cwd, sizeof(cwd));
-            //printf("new path: %s\n", cwd);
 
             free(firstArg);
             free(fullPath);
@@ -554,6 +541,11 @@ void otherCommands(struct input* aCommand, struct processes* aProcess, struct si
 
     // Add null to end of array
     array[aCommand->numArgs + 1] = NULL;
+
+    // If backgroundAllowed set to 1, remove isBackground so runs in foreground
+    if (backgroundAllowed == 1) {
+        aCommand->isBackground = 0;
+    }
 
     // Fork and perform execvp()
     // Using execvp since I created an array & it is using PATH

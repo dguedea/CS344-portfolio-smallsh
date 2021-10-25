@@ -196,7 +196,7 @@ void checkTermination(struct processes* aProcess) {
             if (childPid != 0) {
                 // If exited normally
                 if (WIFEXITED(childStatus)) {
-                    printf("background pid %d is done: terminated by signal %d\n", aProcess->pidArray[i], WEXITSTATUS(childStatus));
+                    printf("background pid %d is done: exit value %d\n", aProcess->pidArray[i], WEXITSTATUS(childStatus));
                     fflush(stdout);
                     aProcess->pidArray[i] = NULL;
                 }
@@ -496,8 +496,16 @@ void chooseCommand(struct input* aCommand, int* exitLoop, struct processes* aPro
     // Check if command equals status & print current errStatus
     else if (strcmp(aCommand->command, "status") == 0)
     {
-        printf("exit value %d\n", errStatus);
-        fflush(stdout);
+        // If terminated
+        if (errStatus > 1) {
+            printf("terminated by signal %d\n", errStatus);
+        }
+        else {
+            // If exited normally
+            printf("exit value %d\n", errStatus);
+            fflush(stdout);
+        }
+
     }
 
     // Check if command equals cd, if so change directory
@@ -617,9 +625,10 @@ void otherCommands(struct input* aCommand, struct processes* aProcess, struct si
 
             // If error, print message and set status to 1
             if (inputFD == -1) {
-                perror("");
-                printf("cannot open %s for input\n", aCommand->inputFile);
+                printf("cannot open %s for input: ", aCommand->inputFile);
                 fflush(stdout);
+                perror("");
+
                 exit(1);
             }
 
@@ -654,6 +663,8 @@ void otherCommands(struct input* aCommand, struct processes* aProcess, struct si
 
             // If error, print message and set status to 1
             if (outputFD == -1) {
+                printf("%s: ", aCommand->outputFile);
+                fflush(stdout);
                 perror("error with output file");
                 exit(1);
             }
@@ -680,7 +691,10 @@ void otherCommands(struct input* aCommand, struct processes* aProcess, struct si
             }
         }
         execvp(array[0], array);
-        perror("Error occurred: ");
+        printf("%s: ", array[0]);
+        fflush(stdout);
+        perror("");
+
         errStatus = 1;
         exit(1); // Exit if there is an error to kill the child 
         break;

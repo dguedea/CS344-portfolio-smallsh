@@ -5,8 +5,14 @@
 * Used to create a small shell in C. It implements a subset of well-known features
 * And execute 3 commands - exit, cd and status as well as others through exec()
 * It supports input and output redirection and running commands in foreground or background
-* Date: 10/22/2021
+* Date: 10/26/2021
 */
+
+// Adding GNU source so I can utilize asprintf 
+// Source https://github.com/nicowilliams/inplace/issues/6
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,7 +29,7 @@
 
 #define MAX_COMMAND 2048
 #define MAX_ARG 512
-#define _GNU_SOURCE
+
 
 /************************************************************************************************
  * INITIALIZING GLOBAL VARIABLES
@@ -192,19 +198,19 @@ void checkTermination(struct processes* aProcess) {
 
     for (int i = 0; i < aProcess->numPids; i++) {
         childPid = waitpid(aProcess->pidArray[i], &childStatus, WNOHANG);
-        if (aProcess->pidArray[i] != NULL) {
+        if (aProcess->pidArray[i] != '\0') {
             if (childPid != 0) {
                 // If exited normally
                 if (WIFEXITED(childStatus)) {
                     printf("background pid %d is done: exit value %d\n", aProcess->pidArray[i], WEXITSTATUS(childStatus));
                     fflush(stdout);
-                    aProcess->pidArray[i] = NULL;
+                    aProcess->pidArray[i] = '\0';
                 }
                 // If not exited normally
                 else {
                     printf("background pid %d is done: terminated by signal %d\n", aProcess->pidArray[i], WTERMSIG(childStatus));
                     fflush(stdout);
-                    aProcess->pidArray[i] = NULL;
+                    aProcess->pidArray[i] = '\0';
                 }
             }
         }
@@ -277,6 +283,15 @@ struct input* parseUserInput(char* input)
     // must do this or else the strtok_r does not notice the & at end
     input[strcspn(input, "\n")] = 0;
 
+    // Set is Bg only if the last character is an &
+    // Later will use token to set struct to isBackground
+    int isBg = 0;
+
+    // See if last character is &, if so, set isBg to true
+    if (input[strlen(input) - 1] == '&') {
+        isBg = 1;
+    }
+
     // Store command since that is always first
     char* token = strtok_r(input, " ", &saveptr);
     newCmd->command = calloc(strlen(token) + 1, sizeof(char));
@@ -300,7 +315,7 @@ struct input* parseUserInput(char* input)
             strcpy(newCmd->outputFile, token);
         }
         // check if background process
-        else if (strcmp(token, "&") == 0)
+        else if ((strcmp(token, "&") == 0) && isBg == 1)
         {
             newCmd->isBackground = 1;
         }
